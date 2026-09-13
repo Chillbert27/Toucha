@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=TOUCHaDESKTOP
+Comment=VR Multitouch for Linux — streamer control
+Exec=python3 %INSTALL_DIR%/toucha_gui.py
+Icon=%INSTALL_DIR%/toucha_icon.png
+Terminal=false
+Categories=Utility;AudioVideo;
+StartupNotify=true

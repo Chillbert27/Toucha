@@ -11,16 +11,16 @@ Store on your Quest. This download is the Linux host side only.
 All files must report OK / good signature. Key fingerprint:
   DB7A 3F89 6919 DA51 825F 3C59 715A 9113 AF69 D487
 
-2. Install — pick ONE:
-A) Native binary:
-  chmod +x TOUCHaDESKTOP
-  ./TOUCHaDESKTOP --source portal --monitors 3 --audio system
-B) Flatpak bundle file:
-  flatpak --user install ./com.toucha.Streamer.flatpak
-  flatpak run com.toucha.Streamer --source portal --monitors 3 --audio system
+2. Install:
+  ./install.sh
+This adds TOUCHaDESKTOP to the start menu. No sudo needed.
+To remove it again: ./install.sh --uninstall
 
-3. Connect on the Quest: open TOUCHa, pick your PC, compare the
+3. Start: open TOUCHaDESKTOP from the start menu and press Start.
+No terminal, no flags needed.
+
+4. Connect on the Quest: open TOUCHa, pick your PC, compare the
 SHA-256 fingerprint shown on the Quest with the one printed in the
-streamer log on your PC, then tap Trust ONCE.
+streamer log in the GUI, then tap Trust ONCE.
 
-Options: ./TOUCHaDESKTOP --help
+The Flatpak bundle file is included for sandbox users.
