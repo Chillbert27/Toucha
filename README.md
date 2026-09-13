@@ -16,11 +16,13 @@ All files must report OK / good signature. Key fingerprint:
 This adds TOUCHaDESKTOP to the start menu. No sudo needed.
 To remove it again: ./install.sh --uninstall
 
-3. Start: open TOUCHaDESKTOP from the start menu and press Start.
+ 3. Start: open TOUCHaDESKTOP from the start menu and press Start.
 No terminal, no flags needed.
 
-4. Connect on the Quest: open TOUCHa, pick your PC, compare the
+Alternative: Flatpak bundle (sandboxed, same GUI via start menu):
+  flatpak --user install ./com.toucha.Streamer.flatpak
+Shared dependencies (KDE runtime + PyQt) come from Flathub automatically.
+
+ 4. Connect on the Quest: open TOUCHa, pick your PC, compare the
 SHA-256 fingerprint shown on the Quest with the one printed in the
 streamer log in the GUI, then tap Trust ONCE.
-
-The Flatpak bundle file is included for sandbox users.

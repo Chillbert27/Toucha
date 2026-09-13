@@ -25,10 +25,11 @@ from PyQt6.QtGui import QFont, QIcon, QTextCursor
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
-# Release layout: TOUCHaDESKTOP sits next to this script (installed to
-# ~/.local/share/TOUCHaDESKTOP/). Fall back to ~/.local/bin, then old dev path.
+# Binary resolution order: sandbox install first (Flatpak /app), then the
+# release folder next to this script (~/.local install), then dev paths.
 def _default_binary():
-    for cand in (HERE / "TOUCHaDESKTOP",
+    for cand in (Path("/app/bin/TOUCHaDESKTOP"),
+                 HERE / "TOUCHaDESKTOP",
                  Path.home() / ".local" / "bin" / "TOUCHaDESKTOP",
                  REPO / "build" / "TOUCHaDESKTOP",
                  REPO / "build" / "toucha-streamer"):
