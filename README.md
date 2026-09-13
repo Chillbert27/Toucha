@@ -1,47 +1,26 @@
-TOUCHa 0.2.0-beta — streamer release (GitHub)
-================================================
+TOUCHaDESKTOP 0.2.0-beta — install
+===================================
 
-The Quest viewer app is distributed through the Meta Horizon Store
-(search "TOUCHa"). This archive contains the Linux host side only.
+You need: a Linux PC (Wayland) + the TOUCHa app from the Meta Horizon
+Store on your Quest. This download is the Linux host side only.
 
-Verify FIRST (needs only the public key in toucha-release.gpg):
+1. Verify the download (public key included):
   gpg --import toucha-release.gpg
   gpg --verify SHA256SUMS.asc
   sha256sum -c SHA256SUMS.txt
-All lines must report OK / good signature. The verified fingerprint is:
+All files must report OK / good signature. Key fingerprint:
   DB7A 3F89 6919 DA51 825F 3C59 715A 9113 AF69 D487
-  ("TOUCHa Releases (TOUCHa release signing)")
 
-Contents:
-  toucha-streamer            Linux streamer, native binary (run with --help).
-                             Recommended: correct multitouch mapping.
-  com.toucha.Streamer.flatpak
-                             Linux streamer, Flatpak bundle (GPG-signed
-                             inside). Sandboxed; KWin touch mapping falls
-                             back to default.
-  toucha-release.gpg         Public release key (see verification above).
-
-Streamer (Linux) — pick ONE:
-------------------------------
-Native:
-  ./toucha-streamer --source portal --monitors 3 --audio system
-Flatpak (verified remote — never use --no-gpg-verify):
-  flatpak remote-add --user toucha-release --gpg-import=toucha-release.gpg \
-      <https://github.com/Chillbert27/Toucha>
-  flatpak --user install toucha-release com.toucha.Streamer
+2. Install — pick ONE:
+A) Native binary:
+  chmod +x TOUCHaDESKTOP
+  ./TOUCHaDESKTOP --source portal --monitors 3 --audio system
+B) Flatpak bundle file:
+  flatpak --user install ./com.toucha.Streamer.flatpak
   flatpak run com.toucha.Streamer --source portal --monitors 3 --audio system
-  (Single-file alternative: flatpak --user install ./com.toucha.Streamer.flatpak
-   — the bundle carries the release GPG signature inside.)
 
-Then on the Quest: install TOUCHa from the Store, pick the host, tap
-Trust ONCE after comparing the SHA-256 fingerprint character by character
-with the streamer log on the host. Reject = no stream, ever, until you
-decide otherwise. The streamer prints its host fingerprint at every start.
+3. Connect on the Quest: open TOUCHa, pick your PC, compare the
+SHA-256 fingerprint shown on the Quest with the one printed in the
+streamer log on your PC, then tap Trust ONCE.
 
-Security model (short version)
-------------------------------
-Discovery (udp/8777) + signaling (tcp/8778+i) + identity are TLS 1.2+
-with pinned fingerprints — no cleartext exists anywhere. Media is SRTP
-with a fresh key per session. Internet streaming belongs inside
-WireGuard (see docs/wireguard.md); Tor carries control only
-(docs/tor.md). Full contract: SECURITY.md in the source tree.
+Options: ./TOUCHaDESKTOP --help
