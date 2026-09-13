@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QComboBox, QSpinBox, QCheckBox, QSlider,
     QGroupBox, QFormLayout, QPlainTextEdit, QLineEdit, QFileDialog,
-    QTabWidget,
+    QTabWidget, QSplitter,
 )
 from PyQt6.QtCore import Qt, QProcess, QProcessEnvironment, QTimer
 from PyQt6.QtGui import QFont, QIcon, QTextCursor
@@ -38,7 +38,24 @@ def _default_binary():
     return HERE / "TOUCHaDESKTOP"
 DEFAULT_BINARY = _default_binary()
 CONFIG_FILE = Path.home() / ".toucha" / "gui.json"
-ICON_FILE = Path(__file__).resolve().parent / "toucha_icon.png"
+
+# Release version shown in the window title (bump per release).
+APP_VERSION = "0.2.5-beta"
+
+
+def resolve_icon():
+    """App icon: next to this script, else sandbox/native install spots."""
+    for cand in (HERE / "toucha_icon.png",
+                 Path("/app/share/icons/hicolor/256x256/apps/"
+                      "com.toucha.Streamer.png"),
+                 Path.home() / ".local" / "share" / "TOUCHaDESKTOP" /
+                 "toucha_icon.png"):
+        if cand.exists():
+            return cand
+    return HERE / "toucha_icon.png"
+
+
+ICON_FILE = resolve_icon()
 
 # Substrings shown when the "input lines only" filter is on (keyboard/input
 # diagnosis without terminal scrolling).
@@ -49,10 +66,10 @@ INPUT_KEYS = ("input", "keyboard", "uinput", "xkb", "eis", "pointer=",
 class TouchAGui(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("TOUCHaDESKTOP")
+        self.setWindowTitle(f"TOUCHaDESKTOP {APP_VERSION}")
         if ICON_FILE.exists():
             self.setWindowIcon(QIcon(str(ICON_FILE)))
-        self.resize(950, 780)
+        self.resize(1000, 900)
         self.proc = None
         self.quest_proc = None
         self.log_lines = []
@@ -80,6 +97,10 @@ class TouchAGui(QMainWindow):
         self.status_label.setFont(QFont("SF Pro Text", 14, QFont.Weight.Bold))
         self.status_label.setStyleSheet("color: #86868b;")
         top_row.addWidget(self.status_label)
+        self.version_label = QLabel(APP_VERSION)
+        self.version_label.setFont(QFont("SF Mono", 11))
+        self.version_label.setStyleSheet("color: #86868b;")
+        top_row.addWidget(self.version_label)
         top_row.addStretch(1)
         self.start_btn = self._btn("Start", "#007AFF", self.start_streamer)
         self.stop_btn = self._btn("Stop", "#FF3B30", self.stop_streamer)
@@ -127,7 +148,12 @@ class TouchAGui(QMainWindow):
 
     # --- main page ---
     def build_main_page(self):
-        layout = self.main_layout
+        # Controls live in the splitter's top half so the log below always
+        # keeps usable space (and stays user-resizable).
+        top = QWidget()
+        layout = QVBoxLayout(top)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
         # --- presets ---
         preset_row = QHBoxLayout()
         preset_row.addWidget(QLabel("Presets:"))
@@ -196,11 +222,11 @@ class TouchAGui(QMainWindow):
         opts.setLayout(form)
         layout.addWidget(opts)
 
-        # --- command preview ---
+        # --- command preview (single line; full text in tooltip) ---
         self.cmd_label = QLabel("")
         self.cmd_label.setFont(QFont("SF Mono", 10))
         self.cmd_label.setStyleSheet("color: #86868b;")
-        self.cmd_label.setWordWrap(True)
+        self.cmd_label.setWordWrap(False)
         layout.addWidget(self.cmd_label)
 
         # --- log tools (Quest log stays here, next to the log it fills) ---
@@ -225,7 +251,14 @@ class TouchAGui(QMainWindow):
         self.log_view.setReadOnly(True)
         self.log_view.setFont(QFont("SF Mono", 11))
         self.log_view.setMaximumBlockCount(5000)
-        layout.addWidget(self.log_view, 1)
+        self.log_view.setMinimumHeight(220)
+        self.splitter = QSplitter(Qt.Orientation.Vertical)
+        self.splitter.addWidget(top)
+        self.splitter.addWidget(self.log_view)
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 1)
+        self.splitter.setSizes([340, 460])
+        self.main_layout.addWidget(self.splitter, 1)
 
     # --- advanced page ---
     def build_adv_page(self):
@@ -341,7 +374,9 @@ class TouchAGui(QMainWindow):
         return argv
 
     def update_cmd(self, *a):
-        self.cmd_label.setText("$ " + " ".join(self.build_argv()))
+        cmd = "$ " + " ".join(self.build_argv())
+        self.cmd_label.setText(cmd)
+        self.cmd_label.setToolTip(cmd)
         self.save_config()
 
     # --- presets ---
@@ -571,6 +606,7 @@ class TouchAGui(QMainWindow):
                     "noportal": self.noportal_chk.isChecked(),
                     "norestore": self.norestore_chk.isChecked(),
                     "filter": self.filter_chk.isChecked(),
+                    "split": list(self.splitter.sizes()),
                 }, f, indent=2)
         except OSError:
             pass
@@ -603,6 +639,10 @@ class TouchAGui(QMainWindow):
         self.noportal_chk.setChecked(c.get("noportal", False))
         self.norestore_chk.setChecked(c.get("norestore", False))
         self.filter_chk.setChecked(c.get("filter", False))
+        split = c.get("split")
+        if (isinstance(split, list) and len(split) == 2 and
+                all(isinstance(v, int) and v > 0 for v in split)):
+            self.splitter.setSizes(split)
 
 
 def run_smoke(app):
@@ -612,6 +652,14 @@ def run_smoke(app):
     import time
     w = TouchAGui()
     assert w.tabs.count() == 2, "expected Streamer + Advanced tabs"
+    assert APP_VERSION and APP_VERSION in w.windowTitle(), w.windowTitle()
+    assert w.version_label.text() == APP_VERSION
+    assert ICON_FILE.exists(), f"app icon missing: {ICON_FILE}"
+    assert not QIcon(str(ICON_FILE)).isNull(), "app icon failed to load"
+    w.show()
+    app.processEvents()
+    assert w.log_view.viewport().height() > 150, \
+        f"log view squeezed: {w.log_view.viewport().height()}px"
     w.preset_test()
     assert "--source" in w.cmd_label.text() and "test" in w.cmd_label.text()
     # Advanced tab: flip an advanced flag, check argv + config round-trip.
