@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import (Qt, QProcess, QProcessEnvironment, QTimer,
                           QPropertyAnimation, QEasingCurve, QRectF)
 from PyQt6.QtGui import (QFont, QIcon, QTextCursor, QPainter, QColor,
-                         QLinearGradient, QPixmap)
+                         QLinearGradient, QPixmap, QPalette)
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
@@ -42,7 +42,7 @@ DEFAULT_BINARY = _default_binary()
 CONFIG_FILE = Path.home() / ".toucha" / "gui.json"
 
 # Release version shown in the window title (bump per release).
-APP_VERSION = "0.2.6-beta"
+APP_VERSION = "0.2.7-beta"
 
 
 def resolve_icon():
@@ -97,16 +97,17 @@ class TouchAGui(QMainWindow):
         top_row = QHBoxLayout()
         self.status_label = QLabel("● stopped")
         self.status_label.setFont(QFont("SF Pro Text", 14, QFont.Weight.Bold))
-        self.status_label.setStyleSheet("color: #86868b;")
+        self.status_label.setStyleSheet("color: #A7A7AB;")
         top_row.addWidget(self.status_label)
         self.version_label = QLabel(APP_VERSION)
         self.version_label.setFont(QFont("SF Mono", 11))
-        self.version_label.setStyleSheet("color: #86868b;")
+        self.version_label.setStyleSheet("color: #A7A7AB;")
         top_row.addWidget(self.version_label)
         top_row.addStretch(1)
-        self.start_btn = self._btn("Start", "#007AFF", self.start_streamer)
-        self.stop_btn = self._btn("Stop", "#FF3B30", self.stop_streamer)
-        self.restart_btn = self._btn("Restart", "#FF9500", self.restart_streamer)
+        self.start_btn = self._btn("Start", "#C05621", self.start_streamer)
+        self.stop_btn = self._btn("Stop", "#9B1C1C", self.stop_streamer)
+        self.restart_btn = self._btn("Restart", "#A16207",
+                                     self.restart_streamer)
         self.stop_btn.setEnabled(False)
         for b in (self.start_btn, self.stop_btn, self.restart_btn):
             top_row.addWidget(b)
@@ -117,17 +118,17 @@ class TouchAGui(QMainWindow):
         layout.addWidget(self.tabs, 1)
         self.page_main = QWidget()
         self.main_layout = QVBoxLayout(self.page_main)
-        self.main_layout.setContentsMargins(8, 8, 8, 8)
-        self.main_layout.setSpacing(8)
+        self.main_layout.setContentsMargins(12, 12, 12, 12)
+        self.main_layout.setSpacing(12)
         self.page_adv = QWidget()
         self.adv_layout = QVBoxLayout(self.page_adv)
-        self.adv_layout.setContentsMargins(8, 8, 8, 8)
-        self.adv_layout.setSpacing(8)
+        self.adv_layout.setContentsMargins(12, 12, 12, 12)
+        self.adv_layout.setSpacing(12)
         self.adv_layout.addStretch(1)
         self.page_log = QWidget()
         self.log_layout = QVBoxLayout(self.page_log)
-        self.log_layout.setContentsMargins(8, 8, 8, 8)
-        self.log_layout.setSpacing(8)
+        self.log_layout.setContentsMargins(12, 12, 12, 12)
+        self.log_layout.setSpacing(12)
         self.tabs.addTab(self.page_main, "Streamer")
         self.tabs.addTab(self.page_adv, "Advanced")
         self.tabs.addTab(self.page_log, "Log")
@@ -162,9 +163,7 @@ class TouchAGui(QMainWindow):
         for name, fn in (("Test pattern", self.preset_test),
                          ("3× portal", self.preset_portal3),
                          ("Input debug", self.preset_debug)):
-            b = QPushButton(name)
-            b.clicked.connect(fn)
-            preset_row.addWidget(b)
+            preset_row.addWidget(self._pill(name, fn))
         preset_row.addStretch(1)
         layout.addLayout(preset_row)
 
@@ -224,12 +223,11 @@ class TouchAGui(QMainWindow):
         opts.setLayout(form)
         layout.addWidget(opts)
 
-        # --- command preview (single line; full text in tooltip) ---
+        # --- command preview (lives on Advanced; full text in tooltip) ---
         self.cmd_label = QLabel("")
         self.cmd_label.setFont(QFont("SF Mono", 10))
-        self.cmd_label.setStyleSheet("color: #86868b;")
+        self.cmd_label.setStyleSheet("color: #A7A7AB;")
         self.cmd_label.setWordWrap(False)
-        layout.addWidget(self.cmd_label)
 
         self.build_log_page()
 
@@ -238,20 +236,15 @@ class TouchAGui(QMainWindow):
         layout = self.log_layout
         # --- log tools (Quest log stays here, next to the log it fills) ---
         log_row = QHBoxLayout()
-        self.quest_btn = QPushButton("Quest log")
-        self.quest_btn.setCheckable(True)
+        self.quest_btn = self._pill("Quest log", self.toggle_quest_log,
+                                    checkable=True)
         self.quest_btn.setToolTip(
             "Stream `adb logcat -s RemoteInput` from the connected Quest "
             "into this view (typing/pinch diagnostics, no terminal).")
-        self.quest_btn.toggled.connect(self.toggle_quest_log)
         log_row.addWidget(self.quest_btn)
         log_row.addStretch(1)
-        clear_btn = QPushButton("Clear")
-        clear_btn.clicked.connect(self.clear_log)
-        save_btn = QPushButton("Save log…")
-        save_btn.clicked.connect(self.save_log)
-        log_row.addWidget(clear_btn)
-        log_row.addWidget(save_btn)
+        log_row.addWidget(self._pill("Clear", self.clear_log))
+        log_row.addWidget(self._pill("Save log…", self.save_log))
         layout.addLayout(log_row)
 
         self.log_view = QPlainTextEdit()
@@ -321,21 +314,64 @@ class TouchAGui(QMainWindow):
         dform.addRow("", self.dbg_chk)
         self.filter_chk = QCheckBox("Input lines only")
         self.filter_chk.setToolTip(
-            "Show only input/keyboard lines in the Streamer tab's log view.")
+            "Show only input/keyboard lines in the Log tab.")
         self.filter_chk.toggled.connect(self.refresh_log_view)
         dform.addRow("", self.filter_chk)
         dbg.setLayout(dform)
         layout.insertWidget(1, dbg)
 
+        cmd = QGroupBox("Command")
+        cmdform = QVBoxLayout()
+        cmdform.setSpacing(4)
+        cmdform.addWidget(self.cmd_label)
+        cmd.setLayout(cmdform)
+        layout.insertWidget(2, cmd)
+
     # --- helpers ---
     @staticmethod
-    def _btn(text, color, slot):
+    def _shade(hex_color, lighter_pct):
+        c = QColor(hex_color)
+        return c.lighter(lighter_pct).name() if lighter_pct >= 100 \
+            else c.darker(10000 // lighter_pct).name()
+
+    @classmethod
+    def _btn(cls, text, color, slot):
+        """Autumn action button: white text, hover/pressed/disabled states."""
+        hover = cls._shade(color, 112)
+        pressed = cls._shade(color, 88)
         b = QPushButton(text)
         b.setFixedHeight(38)
+        b.setMinimumWidth(110)
         b.setStyleSheet(
             f"QPushButton {{ background-color: {color}; color: white; "
-            "border: none; border-radius: 8px; padding: 8px; }}")
+            "border: none; border-radius: 8px; padding: 8px; }}"
+            f"QPushButton:hover {{ background-color: {hover}; }}"
+            f"QPushButton:pressed {{ background-color: {pressed}; }}"
+            "QPushButton:disabled { background-color: #3A3A3C; "
+            "color: #8E8E93; }")
         b.clicked.connect(slot)
+        return b
+
+    @classmethod
+    def _pill(cls, text, slot, checkable=False):
+        """Neutral dark pill for secondary actions (actions stay autumn)."""
+        b = QPushButton(text)
+        b.setFixedHeight(38)
+        b.setCheckable(checkable)
+        b.setStyleSheet(
+            "QPushButton { background-color: #48484A; color: #F5F5F7; "
+            "border: none; border-radius: 8px; padding: 8px 14px; }"
+            "QPushButton:hover { background-color: #545456; }"
+            "QPushButton:pressed { background-color: #38383A; }"
+            "QPushButton:checked { background-color: #C05621; color: white; }"
+            "QPushButton:disabled { background-color: #3A3A3C; "
+            "color: #8E8E93; }")
+        # Checkable pills must follow state changes: programmatic
+        # setChecked() fires toggled() but not clicked().
+        if checkable:
+            b.toggled.connect(slot)
+        else:
+            b.clicked.connect(slot)
         return b
 
     def browse_binary(self):
@@ -465,7 +501,7 @@ class TouchAGui(QMainWindow):
     def on_finished(self, code, status):
         self.append_log(f"[gui] exited with code {code}")
         self.proc = None
-        self.set_status("stopped", "#86868b")
+        self.set_status("stopped", "#A7A7AB")
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
 
@@ -820,9 +856,31 @@ class SplashScreen(QWidget):
         self._fade_out()  # click skips the wait
 
 
+def apply_dark_palette(app):
+    """Dark grey base (UNIX proportions come from the layouts).
+
+    Text #F5F5F7 on #2C2C2E ≈ 13:1, secondary #A7A7AB ≈ 7:1,
+    inputs #1C1C1E — contrast stays put on every control."""
+    pal = QPalette()
+    pal.setColor(QPalette.ColorRole.Window, QColor("#2C2C2E"))
+    pal.setColor(QPalette.ColorRole.WindowText, QColor("#F5F5F7"))
+    pal.setColor(QPalette.ColorRole.Base, QColor("#1C1C1E"))
+    pal.setColor(QPalette.ColorRole.AlternateBase, QColor("#2C2C2E"))
+    pal.setColor(QPalette.ColorRole.Text, QColor("#F5F5F7"))
+    pal.setColor(QPalette.ColorRole.Button, QColor("#3A3A3C"))
+    pal.setColor(QPalette.ColorRole.ButtonText, QColor("#F5F5F7"))
+    pal.setColor(QPalette.ColorRole.Highlight, QColor("#C05621"))
+    pal.setColor(QPalette.ColorRole.HighlightedText, QColor("#FFFFFF"))
+    pal.setColor(QPalette.ColorRole.PlaceholderText, QColor("#8E8E93"))
+    pal.setColor(QPalette.ColorRole.ToolTipBase, QColor("#3A3A3C"))
+    pal.setColor(QPalette.ColorRole.ToolTipText, QColor("#F5F5F7"))
+    app.setPalette(pal)
+
+
 def main():
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
+    apply_dark_palette(app)
     if "--smoke" in sys.argv:
         return run_smoke(app)
     window = TouchAGui()

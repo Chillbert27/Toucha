@@ -1,9 +1,10 @@
-TOUCHaDESKTOP 0.2.6-beta — install
+TOUCHaDESKTOP 0.2.7-beta — install
 ===================================
 
 You need: a Linux PC (Wayland) + the TOUCHa app from the Meta Horizon
 Store on your Quest. This download is the Linux host side only.
-The control GUI shows its version in the title bar and next to the status.
+The control GUI (dark grey, autumn buttons) shows its version in the
+title bar and next to the status.
 
 1. Verify the download (public key included):
   gpg --import toucha-release.gpg
@@ -19,7 +20,8 @@ To remove it again: ./install.sh --uninstall
 
  3. Start: open TOUCHaDESKTOP from the start menu and press Start.
 No terminal, no flags needed. A splash screen appears for 3 seconds,
-then the control GUI opens. The streamer log lives in its own Log tab.
+then the control GUI opens. The streamer log lives in its own Log tab;
+the exact start command is shown under Advanced → Command.
 
 Alternative: Flatpak bundle (sandboxed, same GUI via start menu):
   flatpak --user install ./com.toucha.Streamer.flatpak
