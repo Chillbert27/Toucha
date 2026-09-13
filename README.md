@@ -1,4 +1,4 @@
-TOUCHaDESKTOP 0.2.5-beta — install
+TOUCHaDESKTOP 0.2.6-beta — install
 ===================================
 
 You need: a Linux PC (Wayland) + the TOUCHa app from the Meta Horizon
@@ -17,9 +17,9 @@ All files must report OK / good signature. Key fingerprint:
 This adds TOUCHaDESKTOP to the start menu. No sudo needed.
 To remove it again: ./install.sh --uninstall
 
-3. Start: open TOUCHaDESKTOP from the start menu and press Start.
-No terminal, no flags needed. The lower half of the window is the
-streamer log (drag the divider to resize it).
+ 3. Start: open TOUCHaDESKTOP from the start menu and press Start.
+No terminal, no flags needed. A splash screen appears for 3 seconds,
+then the control GUI opens. The streamer log lives in its own Log tab.
 
 Alternative: Flatpak bundle (sandboxed, same GUI via start menu):
   flatpak --user install ./com.toucha.Streamer.flatpak

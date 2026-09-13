@@ -18,10 +18,12 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QComboBox, QSpinBox, QCheckBox, QSlider,
     QGroupBox, QFormLayout, QPlainTextEdit, QLineEdit, QFileDialog,
-    QTabWidget, QSplitter,
+    QTabWidget,
 )
-from PyQt6.QtCore import Qt, QProcess, QProcessEnvironment, QTimer
-from PyQt6.QtGui import QFont, QIcon, QTextCursor
+from PyQt6.QtCore import (Qt, QProcess, QProcessEnvironment, QTimer,
+                          QPropertyAnimation, QEasingCurve, QRectF)
+from PyQt6.QtGui import (QFont, QIcon, QTextCursor, QPainter, QColor,
+                         QLinearGradient, QPixmap)
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
@@ -40,7 +42,7 @@ DEFAULT_BINARY = _default_binary()
 CONFIG_FILE = Path.home() / ".toucha" / "gui.json"
 
 # Release version shown in the window title (bump per release).
-APP_VERSION = "0.2.5-beta"
+APP_VERSION = "0.2.6-beta"
 
 
 def resolve_icon():
@@ -122,8 +124,13 @@ class TouchAGui(QMainWindow):
         self.adv_layout.setContentsMargins(8, 8, 8, 8)
         self.adv_layout.setSpacing(8)
         self.adv_layout.addStretch(1)
+        self.page_log = QWidget()
+        self.log_layout = QVBoxLayout(self.page_log)
+        self.log_layout.setContentsMargins(8, 8, 8, 8)
+        self.log_layout.setSpacing(8)
         self.tabs.addTab(self.page_main, "Streamer")
         self.tabs.addTab(self.page_adv, "Advanced")
+        self.tabs.addTab(self.page_log, "Log")
 
         self.build_main_page()
         self.build_adv_page()
@@ -148,12 +155,7 @@ class TouchAGui(QMainWindow):
 
     # --- main page ---
     def build_main_page(self):
-        # Controls live in the splitter's top half so the log below always
-        # keeps usable space (and stays user-resizable).
-        top = QWidget()
-        layout = QVBoxLayout(top)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
+        layout = self.main_layout
         # --- presets ---
         preset_row = QHBoxLayout()
         preset_row.addWidget(QLabel("Presets:"))
@@ -229,6 +231,11 @@ class TouchAGui(QMainWindow):
         self.cmd_label.setWordWrap(False)
         layout.addWidget(self.cmd_label)
 
+        self.build_log_page()
+
+    # --- log page (own tab: the log can never hide behind controls) ---
+    def build_log_page(self):
+        layout = self.log_layout
         # --- log tools (Quest log stays here, next to the log it fills) ---
         log_row = QHBoxLayout()
         self.quest_btn = QPushButton("Quest log")
@@ -251,14 +258,7 @@ class TouchAGui(QMainWindow):
         self.log_view.setReadOnly(True)
         self.log_view.setFont(QFont("SF Mono", 11))
         self.log_view.setMaximumBlockCount(5000)
-        self.log_view.setMinimumHeight(220)
-        self.splitter = QSplitter(Qt.Orientation.Vertical)
-        self.splitter.addWidget(top)
-        self.splitter.addWidget(self.log_view)
-        self.splitter.setStretchFactor(0, 0)
-        self.splitter.setStretchFactor(1, 1)
-        self.splitter.setSizes([340, 460])
-        self.main_layout.addWidget(self.splitter, 1)
+        layout.addWidget(self.log_view, 1)
 
     # --- advanced page ---
     def build_adv_page(self):
@@ -606,7 +606,6 @@ class TouchAGui(QMainWindow):
                     "noportal": self.noportal_chk.isChecked(),
                     "norestore": self.norestore_chk.isChecked(),
                     "filter": self.filter_chk.isChecked(),
-                    "split": list(self.splitter.sizes()),
                 }, f, indent=2)
         except OSError:
             pass
@@ -639,10 +638,6 @@ class TouchAGui(QMainWindow):
         self.noportal_chk.setChecked(c.get("noportal", False))
         self.norestore_chk.setChecked(c.get("norestore", False))
         self.filter_chk.setChecked(c.get("filter", False))
-        split = c.get("split")
-        if (isinstance(split, list) and len(split) == 2 and
-                all(isinstance(v, int) and v > 0 for v in split)):
-            self.splitter.setSizes(split)
 
 
 def run_smoke(app):
@@ -651,12 +646,14 @@ def run_smoke(app):
     raises. Takes the existing QApplication (creating a second one hangs)."""
     import time
     w = TouchAGui()
-    assert w.tabs.count() == 2, "expected Streamer + Advanced tabs"
+    assert w.tabs.count() == 3, "expected Streamer + Advanced + Log tabs"
     assert APP_VERSION and APP_VERSION in w.windowTitle(), w.windowTitle()
     assert w.version_label.text() == APP_VERSION
     assert ICON_FILE.exists(), f"app icon missing: {ICON_FILE}"
     assert not QIcon(str(ICON_FILE)).isNull(), "app icon failed to load"
     w.show()
+    app.processEvents()
+    w.tabs.setCurrentIndex(2)
     app.processEvents()
     assert w.log_view.viewport().height() > 150, \
         f"log view squeezed: {w.log_view.viewport().height()}px"
@@ -703,13 +700,134 @@ def run_smoke(app):
     return 0
 
 
+# --- splash screen: frosted glass, 3 s total, fades in and out ---------
+SPLASH_MS = 3000
+SPLASH_FADE_IN_MS = 400
+SPLASH_FADE_OUT_MS = 500
+
+
+class SplashScreen(QWidget):
+    """Frosted-glass splash shown before the main window.
+
+    Frameless translucent panel (rounded, dark gradient) with icon, name +
+    version, the pimpen message and a clickable link. Fades in on show,
+    holds, fades out, then hands over to the main window via on_done.
+    """
+
+    def __init__(self, on_done):
+        super().__init__(
+            None,
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.WindowStaysOnTopHint |
+            Qt.WindowType.SplashScreen)
+        self._on_done = on_done
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setFixedSize(440, 320)
+        self.setWindowOpacity(0.0)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        body = QVBoxLayout()
+        body.setContentsMargins(36, 28, 36, 28)
+        body.setSpacing(10)
+        body.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        if ICON_FILE.exists():
+            icon_label = QLabel()
+            icon_label.setPixmap(
+                QPixmap(str(ICON_FILE)).scaledToHeight(
+                    72, Qt.TransformationMode.SmoothTransformation))
+            icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            body.addWidget(icon_label)
+
+        title = QLabel("TOUCHaDESKTOP")
+        title.setFont(QFont("SF Pro Text", 22, QFont.Weight.Bold))
+        title.setStyleSheet("color: white; background: transparent;")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        body.addWidget(title)
+
+        ver = QLabel(APP_VERSION)
+        ver.setFont(QFont("SF Mono", 12))
+        ver.setStyleSheet("color: #c4b5fd; background: transparent;")
+        ver.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        body.addWidget(ver)
+
+        msg = QLabel("System wird gepimpt…")
+        msg.setFont(QFont("SF Pro Text", 13))
+        msg.setStyleSheet("color: #e5e7eb; background: transparent;")
+        msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        body.addWidget(msg)
+
+        link = QLabel('<a href="https://www.toucha.app" '
+                      'style="color:#93c5fd;">www.toucha.app</a>')
+        link.setFont(QFont("SF Pro Text", 12))
+        link.setStyleSheet("background: transparent;")
+        link.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        link.setOpenExternalLinks(True)
+        body.addWidget(link)
+
+        outer.addLayout(body)
+
+        # Center on the primary screen.
+        screen = QApplication.primaryScreen()
+        if screen is not None:
+            geo = screen.geometry()
+            self.move(geo.center() - self.rect().center())
+
+        self._fade = QPropertyAnimation(self, b"windowOpacity", self)
+        self._fade.setEasingCurve(QEasingCurve.Type.InOutQuad)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._fade.stop()
+        self._fade.setDuration(SPLASH_FADE_IN_MS)
+        self._fade.setStartValue(0.0)
+        self._fade.setEndValue(1.0)
+        self._fade.start()
+        QTimer.singleShot(max(0, SPLASH_MS - SPLASH_FADE_OUT_MS), self._fade_out)
+
+    def _fade_out(self):
+        self._fade.stop()
+        self._fade.setDuration(SPLASH_FADE_OUT_MS)
+        self._fade.setStartValue(self.windowOpacity())
+        self._fade.setEndValue(0.0)
+        try:
+            self._fade.finished.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        self._fade.finished.connect(self._done)
+        self._fade.start()
+
+    def _done(self):
+        self.close()
+        if self._on_done is not None:
+            cb, self._on_done = self._on_done, None
+            cb()
+
+    def paintEvent(self, event):
+        del event
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        grad = QLinearGradient(0, 0, self.width(), self.height())
+        grad.setColorAt(0.0, QColor(30, 27, 75, 216))
+        grad.setColorAt(1.0, QColor(76, 29, 149, 216))
+        p.setBrush(grad)
+        p.setPen(QColor(255, 255, 255, 40))
+        p.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 22, 22)
+
+    def mousePressEvent(self, event):
+        del event
+        self._fade_out()  # click skips the wait
+
+
 def main():
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     if "--smoke" in sys.argv:
         return run_smoke(app)
     window = TouchAGui()
-    window.show()
+    splash = SplashScreen(on_done=window.show)
+    splash.show()
     return app.exec()
 
 
