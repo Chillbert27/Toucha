@@ -1,4 +1,4 @@
-TOUCHaDESKTOP 0.2.0-beta — install
+TOUCHaDESKTOP 0.2.3-beta — install
 ===================================
 
 You need: a Linux PC (Wayland) + the TOUCHa app from the Meta Horizon
