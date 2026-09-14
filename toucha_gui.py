@@ -42,7 +42,7 @@ DEFAULT_BINARY = _default_binary()
 CONFIG_FILE = Path.home() / ".toucha" / "gui.json"
 
 # Release version shown in the window title (bump per release).
-APP_VERSION = "0.2.7-beta"
+APP_VERSION = "0.2.8-beta"
 
 
 def resolve_icon():
