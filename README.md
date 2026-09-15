@@ -13,10 +13,12 @@ title bar and next to the status.
 All files must report OK / good signature. Key fingerprint:
   DB7A 3F89 6919 DA51 825F 3C59 715A 9113 AF69 D487
 
-2. Install:
-  ./install.sh
+ 2. Install:
+   ./install.sh
 This adds TOUCHaDESKTOP to the start menu. No sudo needed.
 To remove it again: ./install.sh --uninstall
+Note: the GUI ships compiled (toucha_gui.pyc) and needs Python 3.14+
+plus PyQt6; install.sh checks both and points at the Flatpak otherwise.
 
  3. Start: open TOUCHaDESKTOP from the start menu and press Start.
 No terminal, no flags needed. A splash screen appears for 3 seconds,
@@ -53,3 +55,29 @@ presence (AUDIO 0/1); relative-mouse anchor reset (no more cursor jumps).
 
 0.2.8 changes: Flatpak audio fixed (host sound streams again without a
 system Opus library); Quest host list documented above.
+
+TOUCHa Host 0.1.0-beta (Android, beta) — TOUCHaHostV0.1.0.apk
+=============================================================
+Turns an Android phone/tablet into a TOUCHa streamer for the Quest:
+same Trust flow (compare the fingerprint on both screens, tap Trust
+ONCE), then the phone screen streams to the headset.
+
+Install: sideload the APK (or run it inside Waydroid on Linux) and open
+TOUCHa Host. Verify it like everything else here:
+  apksigner verify --print-certs TOUCHaHostV0.1.0.apk
+  (expect the TOUCHa Beta certificate) plus sha256sum -c SHA256SUMS.txt.
+
+How to use:
+- Tap Start, confirm the screen-capture consent. The status shows
+  "Waiting for viewer…", then "Connected".
+- On the Quest: manual host entry (auto-discovery stays on the LAN the
+  host actually lives in), Trust ONCE after comparing fingerprints.
+- Touch on the Quest arrives as gestures on the phone (touch-only, no
+  hardware keys without root — stated in the app as well).
+- BACK opens the launcher in a new window (stream keeps running);
+  ✕ closes. Passwords are never stored; host keys use TOFU pins like
+  the desktop streamer.
+
+Beta limits (honest): video only, no host audio yet; touch gestures
+only; screen-capture consent is asked on every start; RTCP feedback
+does not cross NAT setups (keyframe every 2 s covers it).

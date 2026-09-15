@@ -30,7 +30,7 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
   exit 0
 fi
 
-for f in TOUCHaDESKTOP toucha_gui.py toucha_icon.png "TOUCHa.desktop"; do
+for f in TOUCHaDESKTOP toucha_gui.pyc toucha_icon.png "TOUCHa.desktop"; do
   if [ ! -f "$SRC_DIR/$f" ]; then
     echo "Missing $f next to install.sh — run from the extracted release folder." >&2
     exit 1
@@ -48,10 +48,17 @@ if ! python3 -c "import PyQt6" 2>/dev/null; then
   echo "  Ubuntu/Debian: sudo apt install python3-pyqt6" >&2
   exit 1
 fi
+# The GUI ships compiled (toucha_gui.pyc): needs the matching interpreter.
+if ! python3 -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 14) else 1)" 2>/dev/null; then
+  echo "Python 3.14+ is required for the GUI (older Pythons cannot run it)." >&2
+  echo "Alternatively use the Flatpak (bundles everything):" >&2
+  echo "  flatpak --user install ./com.toucha.Streamer.flatpak" >&2
+  exit 1
+fi
 
 mkdir -p "$DEST_DIR"
 cp -f "$SRC_DIR/TOUCHaDESKTOP" "$DEST_DIR/TOUCHaDESKTOP"
-cp -f "$SRC_DIR/toucha_gui.py" "$DEST_DIR/toucha_gui.py"
+cp -f "$SRC_DIR/toucha_gui.pyc" "$DEST_DIR/toucha_gui.pyc"
 cp -f "$SRC_DIR/toucha_icon.png" "$DEST_DIR/toucha_icon.png"
 chmod +x "$DEST_DIR/TOUCHaDESKTOP"
 
