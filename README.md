@@ -1,4 +1,4 @@
-TOUCHaDESKTOP 0.2.8-beta — install
+TOUCHaDESKTOP 0.2.9-beta — install
 ===================================
 
 You need: a Linux PC (Wayland) + the TOUCHa app from the Meta Horizon
@@ -45,6 +45,11 @@ streamer log in the GUI, then tap Trust ONCE.
   connecting.
 - Speaker button (♪) mutes host audio on all windows; the toolbar host
   button switches host per window (long-press = forget pin).
+
+0.2.9 changes: control GUI starts the streamer automatically (Autostart
+checkbox, on by default); Advanced command wraps instead of widening the
+window; window freely resizable; Quest audio routing follows headset
+presence (AUDIO 0/1); relative-mouse anchor reset (no more cursor jumps).
 
 0.2.8 changes: Flatpak audio fixed (host sound streams again without a
 system Opus library); Quest host list documented above.

@@ -42,7 +42,7 @@ DEFAULT_BINARY = _default_binary()
 CONFIG_FILE = Path.home() / ".toucha" / "gui.json"
 
 # Release version shown in the window title (bump per release).
-APP_VERSION = "0.2.8-beta"
+APP_VERSION = "0.2.9-beta"
 
 
 def resolve_icon():
@@ -72,6 +72,9 @@ class TouchAGui(QMainWindow):
         if ICON_FILE.exists():
             self.setWindowIcon(QIcon(str(ICON_FILE)))
         self.resize(1000, 900)
+        # No minimum size: the window must shrink to (almost) nothing —
+        # long labels wrap (see cmd_label) instead of forcing width.
+        self.setMinimumSize(0, 0)
         self.proc = None
         self.quest_proc = None
         self.log_lines = []
@@ -111,6 +114,14 @@ class TouchAGui(QMainWindow):
         self.stop_btn.setEnabled(False)
         for b in (self.start_btn, self.stop_btn, self.restart_btn):
             top_row.addWidget(b)
+        # Autostart switch (persisted in gui.json, default on): the
+        # streamer is already running when the window opens.
+        self.autostart_chk = QCheckBox("Autostart")
+        self.autostart_chk.setChecked(True)
+        self.autostart_chk.setToolTip(
+            "Start the streamer automatically when the GUI opens.")
+        self.autostart_chk.toggled.connect(lambda: self.save_config())
+        top_row.addWidget(self.autostart_chk)
         layout.addLayout(top_row)
 
         # --- tabs ---
@@ -227,7 +238,8 @@ class TouchAGui(QMainWindow):
         self.cmd_label = QLabel("")
         self.cmd_label.setFont(QFont("SF Mono", 10))
         self.cmd_label.setStyleSheet("color: #A7A7AB;")
-        self.cmd_label.setWordWrap(False)
+        # Wrapped: a long command must never dictate the window width.
+        self.cmd_label.setWordWrap(True)
 
         self.build_log_page()
 
@@ -341,7 +353,8 @@ class TouchAGui(QMainWindow):
         pressed = cls._shade(color, 88)
         b = QPushButton(text)
         b.setFixedHeight(38)
-        b.setMinimumWidth(110)
+        # Slim floor so the whole window can shrink to (almost) nothing.
+        b.setMinimumWidth(72)
         b.setStyleSheet(
             f"QPushButton {{ background-color: {color}; color: white; "
             "border: none; border-radius: 8px; padding: 8px; }}"
@@ -642,6 +655,7 @@ class TouchAGui(QMainWindow):
                     "noportal": self.noportal_chk.isChecked(),
                     "norestore": self.norestore_chk.isChecked(),
                     "filter": self.filter_chk.isChecked(),
+                    "autostart": self.autostart_chk.isChecked(),
                 }, f, indent=2)
         except OSError:
             pass
@@ -674,6 +688,7 @@ class TouchAGui(QMainWindow):
         self.noportal_chk.setChecked(c.get("noportal", False))
         self.norestore_chk.setChecked(c.get("norestore", False))
         self.filter_chk.setChecked(c.get("filter", False))
+        self.autostart_chk.setChecked(c.get("autostart", True))
 
 
 def run_smoke(app):
@@ -884,6 +899,12 @@ def main():
     if "--smoke" in sys.argv:
         return run_smoke(app)
     window = TouchAGui()
+    # Autostart (unless unchecked or opted out): the streamer is already
+    # up while the splash still fades. start_streamer() is idempotent and
+    # fails soft (log line) when the binary is missing.
+    if "--no-autostart" not in sys.argv \
+            and window.autostart_chk.isChecked():
+        QTimer.singleShot(0, window.start_streamer)
     splash = SplashScreen(on_done=window.show)
     splash.show()
     return app.exec()
